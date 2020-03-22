@@ -1,11 +1,16 @@
 package th.in.meen.natmeout;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.management.ManagementFactory;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import th.in.meen.natmeout.model.CommandLineArgument;
+import th.in.meen.natmeout.model.config.ApplicationConfig;
+import th.in.meen.natmeout.model.config.PublicSideTcpConfigItem;
 import th.in.meen.natmeout.server.PublicSideTcpServer;
 
 import th.in.meen.natmeout.server.NatSideTcpServer;
@@ -17,7 +22,7 @@ public class NatMeOutApp {
 
     private static final Logger log = LoggerFactory.getLogger(NatMeOutApp.class);
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
         //Set PID
         System.setProperty("PID", ManagementFactory.getRuntimeMXBean().getName().toString().split("@")[0]);
 
@@ -28,6 +33,17 @@ public class NatMeOutApp {
 
         CommandLineArgument commandLineArgument = parseArgument(args);
 
+        if(CommandLineArgument.MODE.PUBLIC.equals(commandLineArgument.getMode()))
+        {
+            log.info("Starting in public side mode");
+            //Parse config
+            ObjectMapper ymlMapper = new ObjectMapper(new YAMLFactory());
+            ApplicationConfig applicationConfig = ymlMapper.readValue(new File(commandLineArgument.getPathToConfig()), ApplicationConfig.class);
+
+            for(PublicSideTcpConfigItem publicSideTcpConfigItem : applicationConfig.getPublicSide().getTcp()) {
+                PublicSideTcpServer publicSideTcpServer = new PublicSideTcpServer(publicSideTcpConfigItem);
+            }
+        }
 
     }
 
