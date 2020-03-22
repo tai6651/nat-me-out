@@ -1,0 +1,18 @@
+publicSide:
+  tcp:
+    - publicSidePort: 8080
+      tunnelProtocolClass: th.in.meen.natmeout.tunneler.tcp.PublicSideTunnelerImpl
+      tunnelProtocolConfig:
+        secret: 'ThisIsS3ret'
+        tunnelPort: 5000
+  ## UDP will be supported later
+
+natSide:
+  tcp: 
+    - natSideDestinationIp: 127.0.0.1
+      natSideDestinationPort: 80
+      tunnelProtocolClass: th.in.meen.natmeout.tuneller.tcp.NatSide
+      tunnelProtocolConfig:
+        secret: 'ThisIsS3ret'
+        tunnelIp: 127.0.0.1
+        tunnelPort: 5000
