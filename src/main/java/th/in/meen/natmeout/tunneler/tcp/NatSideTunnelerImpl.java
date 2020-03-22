@@ -1,6 +1,5 @@
 package th.in.meen.natmeout.tunneler.tcp;
 
-import com.sun.xml.internal.bind.v2.runtime.reflect.Lister;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import th.in.meen.natmeout.model.exception.TunnelerException;
@@ -236,6 +235,7 @@ public class NatSideTunnelerImpl implements NatSideTunneler {
                     inputStreamFromPublicSide = inputStream;
 
                     isReady = true;
+                    log.info("Server is now ready to tunnel to " + natSideDestinationHost + " port " + natSideDestinationPort);
 
                     //Block until someone change state to not ready
                     while(isReady)

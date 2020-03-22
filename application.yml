@@ -1,6 +1,6 @@
 publicSide:
   tcp:
-    - publicSidePort: 20000
+    - publicSidePort: 8080
       tunnelProtocolClass: th.in.meen.natmeout.tunneler.tcp.PublicSideTunnelerImpl
       tunnelProtocolConfig:
         secret: 'ThisIsS3ret'
@@ -10,7 +10,7 @@ publicSide:
 natSide:
   tcp: 
     - natSideDestinationHost: www.meen.in.th
-      natSideDestinationPort: 22
+      natSideDestinationPort: 80
       tunnelProtocolClass: th.in.meen.natmeout.tunneler.tcp.NatSideTunnelerImpl
       tunnelProtocolConfig:
         secret: 'ThisIsS3ret'

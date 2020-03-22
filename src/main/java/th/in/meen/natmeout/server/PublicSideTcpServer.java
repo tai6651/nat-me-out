@@ -8,11 +8,9 @@ import th.in.meen.natmeout.model.message.DataMessage;
 import th.in.meen.natmeout.model.message.DisconnectMessage;
 import th.in.meen.natmeout.model.message.TunnelMessage;
 import th.in.meen.natmeout.tunneler.PublicSideTunneler;
-import th.in.meen.natmeout.tunneler.tcp.PublicSideTunnelerImpl;
-
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Constructor;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
@@ -38,7 +36,7 @@ public class PublicSideTcpServer {
     //Incremental connection id
     private short connectionId = 0;
 
-    public PublicSideTcpServer(PublicSideTcpConfigItem publicSideTcpConfigItem) throws IOException, InterruptedException {
+    public PublicSideTcpServer(PublicSideTcpConfigItem publicSideTcpConfigItem) throws Exception {
         //Setup Tx Rx Queue
         txQueue = new LinkedBlockingQueue<>();
         rxQueue = new LinkedBlockingQueue<>();
@@ -51,8 +49,11 @@ public class PublicSideTcpServer {
         //Start our Dispatcher
         startDispatcherLoop();
 
-        //TODO: Init tunneler by config
-        publicSideTunneler = new PublicSideTunnelerImpl();
+        //Init tunneler by class name
+        log.info("Creating tunneler from " + publicSideTcpConfigItem.getTunnelProtocolClass());
+        Class<?> c = Class.forName(publicSideTcpConfigItem.getTunnelProtocolClass());
+        Constructor<?> cons = c.getConstructor();
+        publicSideTunneler = (PublicSideTunneler) cons.newInstance();
         publicSideTunneler.initialize(publicSideTcpConfigItem.getTunnelProtocolConfig());
         startTxRxLoop();
 

@@ -8,9 +8,8 @@ import th.in.meen.natmeout.model.message.DataMessage;
 import th.in.meen.natmeout.model.message.DisconnectMessage;
 import th.in.meen.natmeout.model.message.TunnelMessage;
 import th.in.meen.natmeout.tunneler.NatSideTunneler;
-import th.in.meen.natmeout.tunneler.tcp.NatSideTunnelerImpl;
 
-import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -23,16 +22,18 @@ public class NatSideTcpServer {
 
     private NatSideTunneler natSideTunneler;
 
-    public NatSideTcpServer(NatSideTcpConfigItem natSideTcpConfigItem) throws IOException, InterruptedException
-    {
+    public NatSideTcpServer(NatSideTcpConfigItem natSideTcpConfigItem) throws Exception {
         //Setup Rx Queue (Tx Queue is at Tunneler impl)
         rxQueue = new LinkedBlockingQueue<>();
 
         //Start our Dispatcher
         startDispatcherLoop();
 
-        //TODO: Init tunneler by config
-        natSideTunneler = new NatSideTunnelerImpl();
+        //Init tunneler by class name
+        log.info("Creating tunneler from " + natSideTcpConfigItem.getTunnelProtocolClass());
+        Class<?> c = Class.forName(natSideTcpConfigItem.getTunnelProtocolClass());
+        Constructor<?> cons = c.getConstructor();
+        natSideTunneler = (NatSideTunneler) cons.newInstance();
         natSideTunneler.initialize(natSideTcpConfigItem.getNatSideDestinationHost(), natSideTcpConfigItem.getNatSideDestinationPort(), natSideTcpConfigItem.getTunnelProtocolConfig());
         startTxRxLoop();
 
