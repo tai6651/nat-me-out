@@ -88,7 +88,7 @@ public class PublicSideTcpServer {
                     {
                         byte[] buffer = new byte[4096];
                         int dataLength = inputStream.read(buffer);
-                        if(dataLength == 0)
+                        if(dataLength < 0)
                         {
                             txQueue.put(new DisconnectMessage(currentConnectionId));
                             break;

@@ -2,6 +2,9 @@ package th.in.meen.natmeout.model.message;
 
 import th.in.meen.natmeout.util.PacketUtil;
 
+import javax.xml.bind.DatatypeConverter;
+import java.util.Arrays;
+
 public class DataMessage implements TunnelMessage  {
 
     private short connectionId;
@@ -49,4 +52,12 @@ public class DataMessage implements TunnelMessage  {
         return data;
     }
 
+
+    @Override
+    public String toString() {
+        return "DataMessage{" +
+                "connectionId=" + connectionId +
+                ", data=" + DatatypeConverter.printHexBinary(data) +
+                '}';
+    }
 }

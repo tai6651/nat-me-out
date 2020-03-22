@@ -9,6 +9,17 @@ public class ConnectMessage implements TunnelMessage {
         this.connectionId = connectionId;
     }
 
+    public ConnectMessage(byte[] payloadFromTunnel)
+    {
+        //Parse raw binary data into connectionId and data
+        byte[] connectionIdByte = new byte[2];
+
+        //Copy data to destination array
+        System.arraycopy(payloadFromTunnel, 0, connectionIdByte, 0, 2);
+        //Covert from byte to short
+        this.connectionId = PacketUtil.convertFromBytesToShort(connectionIdByte);
+    }
+
     @Override
     public COMMAND getCommand() {
         return COMMAND.CONNECT;
@@ -17,5 +28,12 @@ public class ConnectMessage implements TunnelMessage {
     @Override
     public byte[] getPayload() {
         return PacketUtil.convertFromShortToBytes(connectionId);
+    }
+
+    @Override
+    public String toString() {
+        return "ConnectMessage{" +
+                "connectionId=" + connectionId +
+                '}';
     }
 }

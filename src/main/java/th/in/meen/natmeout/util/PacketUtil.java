@@ -29,8 +29,33 @@ public class PacketUtil {
                 return 2;
             case DISCONNECT:
                 return 3;
+            case AUTH_SUCCESS:
+                return 4;
+            case AUTH_FAILURE:
+                return 5;
             default:
                 throw new RuntimeException("Unknown command - " + command);
+        }
+    }
+
+    public static TunnelMessage.COMMAND convertFromByteToCommand(byte commandByte)
+    {
+        switch(commandByte)
+        {
+            case 0:
+                return TunnelMessage.COMMAND.HELLO;
+            case 1:
+                return TunnelMessage.COMMAND.CONNECT;
+            case 2:
+                return TunnelMessage.COMMAND.DATA;
+            case 3:
+                return TunnelMessage.COMMAND.DISCONNECT;
+            case 4:
+                return TunnelMessage.COMMAND.AUTH_SUCCESS;
+            case 5:
+                return TunnelMessage.COMMAND.AUTH_FAILURE;
+            default:
+                throw new RuntimeException("Unknown command byte - " + commandByte);
         }
     }
 }

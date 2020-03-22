@@ -2,14 +2,16 @@ package th.in.meen.natmeout.model.message;
 
 public interface TunnelMessage {
 
-    public enum COMMAND
+    enum COMMAND
     {
         HELLO,
         CONNECT,
         DATA,
         DISCONNECT,
+        AUTH_SUCCESS,
+        AUTH_FAILURE,
         PING,
-        PONG
+        PONG,
     }
 
     public COMMAND getCommand();
