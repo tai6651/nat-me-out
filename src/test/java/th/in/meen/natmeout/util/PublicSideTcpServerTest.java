@@ -24,7 +24,7 @@ public class PublicSideTcpServerTest {
         OutputStream outputStream = clientSocket.getOutputStream();
 
         TunnelMessage tunnelMessage = new HelloMessage("ThisIsS3ret");
-        byte[] dataToSend = PublicSideTunnelerImpl.generateBytesToSend(tunnelMessage);
+        byte[] dataToSend = PacketUtil.generateBytesToSend(tunnelMessage);
         outputStream.write(dataToSend);
 
         Thread t = new Thread(new Runnable() {
@@ -33,7 +33,7 @@ public class PublicSideTcpServerTest {
                 while(true) {
                     TunnelMessage response = null;
                     try {
-                        response = PublicSideTunnelerImpl.readMessage(inputStream);
+                        response = PacketUtil.readMessageFromInputStream(inputStream);
                         if(response != null)
                             log.debug("Received message type " + response.getCommand() + " - " + response.toString());
                     } catch (IOException e) {

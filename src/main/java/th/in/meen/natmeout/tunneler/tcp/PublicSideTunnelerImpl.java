@@ -47,35 +47,17 @@ public class PublicSideTunnelerImpl implements PublicSideTunneler {
                 try {
                     Socket socket = serverSocket.accept();
                     log.info("Incoming connection from NAT side address " + socket.getRemoteSocketAddress().toString());
-                    log.info("Authenticating...");
-                    InputStream inputStream = socket.getInputStream();
-                    OutputStream outputStream = socket.getOutputStream();
-
-                    //Read 1st Tunnel Message
-                    TunnelMessage tunnelMessage = readMessage(inputStream);
-
-                    //Should be hello message
-                    if(tunnelMessage instanceof HelloMessage) {
-                        //Verify secret
-                        HelloMessage helloMessage = (HelloMessage) tunnelMessage;
-                        if (configuration.get("secret").toString().equals(helloMessage.getSecret())) {
-                            AuthSuccessMessage message = new AuthSuccessMessage("Auth success, I'm server");
-                            byte[] dataToSend = generateBytesToSend(message);
-                            outputStream.write(dataToSend);
-                            log.info("Authentication success");
-
-                            inputStreamFromNatSide = inputStream;
-                            outputStreamToNatSide = outputStream;
-
-                            //Mark current state as ready
-                            isReady = true;
+                    Thread t = new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                handleNewNATSideConnection(socket, configuration.get("secret").toString());
+                            } catch (IOException e) {
+                                log.error(e.getMessage(), e);
+                            }
                         }
-                    }
-                    else {
-                        //Close
-                        log.info("Invalid message, Disconnect!");
-                        socket.close();
-                    }
+                    });
+                    t.start();
                 }catch (Exception ex)
                 {
                     log.error(ex.getMessage(), ex);
@@ -84,6 +66,48 @@ public class PublicSideTunnelerImpl implements PublicSideTunneler {
         } catch (IOException e) {
             throw new TunnelerException(e);
         }
+    }
+
+    public void handleNewNATSideConnection(Socket socket, String secret) throws IOException {
+        log.info("Authenticating...");
+        InputStream inputStream = socket.getInputStream();
+        OutputStream outputStream = socket.getOutputStream();
+
+        //Read 1st Tunnel Message
+        TunnelMessage tunnelMessage = PacketUtil.readMessageFromInputStream(inputStream);
+
+        //Should be hello message
+        if(tunnelMessage instanceof HelloMessage) {
+            //Verify secret
+            HelloMessage helloMessage = (HelloMessage) tunnelMessage;
+            if (secret.equals(helloMessage.getSecret())) {
+                AuthSuccessMessage message = new AuthSuccessMessage("Auth success, I'm server");
+                byte[] dataToSend = PacketUtil.generateBytesToSend(message);
+                outputStream.write(dataToSend);
+                log.info("Authentication success");
+
+                inputStreamFromNatSide = inputStream;
+                outputStreamToNatSide = outputStream;
+
+                //Mark current state as ready
+                isReady = true;
+            }
+            else
+            {
+                AuthFailureMessage message = new AuthFailureMessage("Incorrect secret");
+                byte[] dataToSend = PacketUtil.generateBytesToSend(message);
+                outputStream.write(dataToSend);
+                log.info("Authentication failure - Invalid secret");
+                socket.close();
+            }
+        }
+        else {
+            //Close
+            log.info("Invalid message, Disconnect!");
+            socket.close();
+        }
+
+        //////////////////////////
     }
 
     @Override
@@ -98,13 +122,14 @@ public class PublicSideTunnelerImpl implements PublicSideTunneler {
             }
         }
 
-        byte[] dataToSend = generateBytesToSend(tunnelMessage);
+        byte[] dataToSend = PacketUtil.generateBytesToSend(tunnelMessage);
         log.debug("Transmitting message type " + tunnelMessage.getCommand() + " - " + DatatypeConverter.printHexBinary(dataToSend));
 
         //Send to NAT Side
         try {
             outputStreamToNatSide.write(dataToSend);
         } catch (IOException e) {
+            isReady = false;
             log.error(e.getMessage(), e);
         }
     }
@@ -122,7 +147,7 @@ public class PublicSideTunnelerImpl implements PublicSideTunneler {
 
         //Receive from NAT side
         try {
-            return readMessage(inputStreamFromNatSide);
+            return PacketUtil.readMessageFromInputStream(inputStreamFromNatSide);
         } catch (IOException e) {
             isReady = false;
             log.error(e.getMessage(), e);
@@ -132,50 +157,5 @@ public class PublicSideTunnelerImpl implements PublicSideTunneler {
         //return new DataMessage((short)0, "HELLO FROM Another side".getBytes());
     }
 
-    public static TunnelMessage readMessage(InputStream inputStream) throws IOException {
-        //Read first 2 byte for message length
-        byte[] messageLengthByte = new byte[2];
-        inputStream.read(messageLengthByte);
-        short msgLength = PacketUtil.convertFromBytesToShort(messageLengthByte);
-        byte[] payload = new byte[msgLength];
-        inputStream.read(payload);
-        TunnelMessage.COMMAND command = PacketUtil.convertFromByteToCommand(payload[0]);
-        byte[] data = new byte[msgLength - 1];
-        System.arraycopy(payload, 1, data, 0, msgLength - 1);
-        switch(command)
-        {
-            case AUTH_SUCCESS:
-                return new AuthSuccessMessage(data);
-            case HELLO:
-                return new HelloMessage(data);
-            case DATA:
-                return new DataMessage(data);
-            case CONNECT:
-                return new ConnectMessage(data);
-            case DISCONNECT:
-                return new DisconnectMessage(data);
-            default:
-                return null;
-        }
-    }
 
-    public static byte[] generateBytesToSend(TunnelMessage tunnelMessage)
-    {
-        //Message structure is
-        // MSG_LENGTH | COMMAND_MODE | PAYLOAD
-        // MSG_LENGTH = LENGTH(COMMAND_MODE | PAYLOAD)
-        // LENGTH(COMMAND_MODE) = 1
-        // LENGTH(PAYLOAD) = payload.length
-        // LENGTH(MSG_LENGTH) = 2
-        byte[] payload = tunnelMessage.getPayload();
-        short messageLength = (short) (payload.length+1);
-        byte[] messageLengthByes = PacketUtil.convertFromShortToBytes(messageLength);
-
-        byte[] dataToSend = new byte[payload.length+3];
-        System.arraycopy(messageLengthByes, 0, dataToSend, 0, 2);
-        dataToSend[2] = PacketUtil.convertFromCommandToByte(tunnelMessage.getCommand());
-        System.arraycopy(payload, 0, dataToSend, 3, payload.length);
-
-        return dataToSend;
-    }
 }

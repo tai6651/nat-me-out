@@ -1,6 +1,9 @@
 package th.in.meen.natmeout.util;
 
-import th.in.meen.natmeout.model.message.TunnelMessage;
+import th.in.meen.natmeout.model.message.*;
+
+import java.io.IOException;
+import java.io.InputStream;
 
 public class PacketUtil {
     public static byte[] convertFromShortToBytes(short data)
@@ -57,5 +60,54 @@ public class PacketUtil {
             default:
                 throw new RuntimeException("Unknown command byte - " + commandByte);
         }
+    }
+
+
+    public static TunnelMessage readMessageFromInputStream(InputStream inputStream) throws IOException {
+        //Read first 2 byte for message length
+        byte[] messageLengthByte = new byte[2];
+        inputStream.read(messageLengthByte);
+        short msgLength = PacketUtil.convertFromBytesToShort(messageLengthByte);
+        byte[] payload = new byte[msgLength];
+        inputStream.read(payload);
+        TunnelMessage.COMMAND command = PacketUtil.convertFromByteToCommand(payload[0]);
+        byte[] data = new byte[msgLength - 1];
+        System.arraycopy(payload, 1, data, 0, msgLength - 1);
+        switch(command)
+        {
+            case AUTH_SUCCESS:
+                return new AuthSuccessMessage(data);
+            case HELLO:
+                return new HelloMessage(data);
+            case DATA:
+                return new DataMessage(data);
+            case CONNECT:
+                return new ConnectMessage(data);
+            case DISCONNECT:
+                return new DisconnectMessage(data);
+            default:
+                return null;
+        }
+    }
+
+
+    public static byte[] generateBytesToSend(TunnelMessage tunnelMessage)
+    {
+        //Message structure is
+        // MSG_LENGTH | COMMAND_MODE | PAYLOAD
+        // MSG_LENGTH = LENGTH(COMMAND_MODE | PAYLOAD)
+        // LENGTH(COMMAND_MODE) = 1
+        // LENGTH(PAYLOAD) = payload.length
+        // LENGTH(MSG_LENGTH) = 2
+        byte[] payload = tunnelMessage.getPayload();
+        short messageLength = (short) (payload.length+1);
+        byte[] messageLengthByes = PacketUtil.convertFromShortToBytes(messageLength);
+
+        byte[] dataToSend = new byte[payload.length+3];
+        System.arraycopy(messageLengthByes, 0, dataToSend, 0, 2);
+        dataToSend[2] = PacketUtil.convertFromCommandToByte(tunnelMessage.getCommand());
+        System.arraycopy(payload, 0, dataToSend, 3, payload.length);
+
+        return dataToSend;
     }
 }

@@ -32,6 +32,10 @@ public class DisconnectMessage implements TunnelMessage {
         return PacketUtil.convertFromShortToBytes(connectionId);
     }
 
+    public short getConnectionId() {
+        return connectionId;
+    }
+
     @Override
     public String toString() {
         return "DisconnectMessage{" +

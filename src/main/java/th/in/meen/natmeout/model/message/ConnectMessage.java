@@ -30,6 +30,10 @@ public class ConnectMessage implements TunnelMessage {
         return PacketUtil.convertFromShortToBytes(connectionId);
     }
 
+    public short getConnectionId() {
+        return connectionId;
+    }
+
     @Override
     public String toString() {
         return "ConnectMessage{" +

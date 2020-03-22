@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import th.in.meen.natmeout.model.CommandLineArgument;
 import th.in.meen.natmeout.model.config.ApplicationConfig;
+import th.in.meen.natmeout.model.config.NatSideTcpConfigItem;
 import th.in.meen.natmeout.model.config.PublicSideTcpConfigItem;
 import th.in.meen.natmeout.server.PublicSideTcpServer;
 
@@ -42,6 +43,17 @@ public class NatMeOutApp {
 
             for(PublicSideTcpConfigItem publicSideTcpConfigItem : applicationConfig.getPublicSide().getTcp()) {
                 PublicSideTcpServer publicSideTcpServer = new PublicSideTcpServer(publicSideTcpConfigItem);
+            }
+        }
+        else if(CommandLineArgument.MODE.NAT.equals(commandLineArgument.getMode()))
+        {
+            log.info("Starting in nat side mode");
+            //Parse config
+            ObjectMapper ymlMapper = new ObjectMapper(new YAMLFactory());
+            ApplicationConfig applicationConfig = ymlMapper.readValue(new File(commandLineArgument.getPathToConfig()), ApplicationConfig.class);
+
+            for(NatSideTcpConfigItem natSideTcpConfigItem : applicationConfig.getNatSide().getTcp()) {
+                NatSideTcpServer natSideTcpServer = new NatSideTcpServer(natSideTcpConfigItem);
             }
         }
 

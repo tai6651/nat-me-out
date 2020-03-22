@@ -7,17 +7,17 @@ import java.util.Map;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class NatSideTcpConfigItem {
-    private String natSideDestinationIp;
+    private String natSideDestinationHost;
     private Integer natSideDestinationPort;
     private String tunnelProtocolClass;
     private Map<String, Object> tunnelProtocolConfig;
 
-    public String getNatSideDestinationIp() {
-        return natSideDestinationIp;
+    public String getNatSideDestinationHost() {
+        return natSideDestinationHost;
     }
 
-    public void setNatSideDestinationIp(String natSideDestinationIp) {
-        this.natSideDestinationIp = natSideDestinationIp;
+    public void setNatSideDestinationHost(String natSideDestinationHost) {
+        this.natSideDestinationHost = natSideDestinationHost;
     }
 
     public Integer getNatSideDestinationPort() {
