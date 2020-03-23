@@ -2,6 +2,7 @@ package th.in.meen.natmeout.util;
 
 import th.in.meen.natmeout.model.message.*;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -66,10 +67,10 @@ public class PacketUtil {
     public static TunnelMessage readMessageFromInputStream(InputStream inputStream) throws IOException {
         //Read first 2 byte for message length
         byte[] messageLengthByte = new byte[2];
-        inputStream.read(messageLengthByte);
+        readFully(messageLengthByte, inputStream);
         short msgLength = PacketUtil.convertFromBytesToShort(messageLengthByte);
         byte[] payload = new byte[msgLength];
-        inputStream.read(payload);
+        readFully(payload, inputStream);
         TunnelMessage.COMMAND command = PacketUtil.convertFromByteToCommand(payload[0]);
         byte[] data = new byte[msgLength - 1];
         System.arraycopy(payload, 1, data, 0, msgLength - 1);
@@ -109,5 +110,16 @@ public class PacketUtil {
         System.arraycopy(payload, 0, dataToSend, 3, payload.length);
 
         return dataToSend;
+    }
+
+    public static void readFully(byte[] buffer, InputStream in) throws IOException {
+        int n = 0;
+        int len = buffer.length;
+        while (n < len) {
+            int count = in.read(buffer, n, len - n);
+            if (count < 0)
+                throw new EOFException();
+            n += count;
+        }
     }
 }
