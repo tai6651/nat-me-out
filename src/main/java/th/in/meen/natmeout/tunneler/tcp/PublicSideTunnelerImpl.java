@@ -15,13 +15,19 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Map;
 
+/***
+ * Sample implementation for Tunneler - This is simple TCP tunneler
+ *
+ * Written by Suttichort Sarathum
+ * Email: tai5854@hotmail.com
+ * Website: https://www.meen.in.th/
+ */
 public class PublicSideTunnelerImpl implements PublicSideTunneler {
 
     private static final Logger log = LoggerFactory.getLogger(PublicSideTunnelerImpl.class);
     private boolean isReady = false;
 
-    private InputStream inputStreamFromNatSide;
-    private OutputStream outputStreamToNatSide;
+    private Socket currentTunnelSocket;
 
     @Override
     public void initialize(Map<String, Object> configuration) throws TunnelerException {
@@ -35,18 +41,21 @@ public class PublicSideTunnelerImpl implements PublicSideTunneler {
         mainThread.start();
     }
 
-    public void initConnection(Map<String, Object> configuration)
+    private void initConnection(Map<String, Object> configuration)
     {
 
         Integer tunnelPort = (Integer) configuration.get("tunnelPort");
         try {
             ServerSocket serverSocket = new ServerSocket(tunnelPort);
             log.info("TCP Tunneler is listen for NAT side at port " + tunnelPort);
+            int natSideCounter = 0;
             while(true)
             {
                 try {
                     Socket socket = serverSocket.accept();
-                    log.info("Incoming connection from NAT side address " + socket.getRemoteSocketAddress().toString());
+                    int natSideConnectionId = natSideCounter++;
+                    log.info("Incoming connection from NAT side address " + socket.getRemoteSocketAddress().toString() + "; Assigned as NAT client id " + natSideConnectionId);
+
                     Thread t = new Thread(new Runnable() {
                         @Override
                         public void run() {
@@ -57,7 +66,9 @@ public class PublicSideTunnelerImpl implements PublicSideTunneler {
                             }
                         }
                     });
+                    t.setName("TcpTunnel-NatId-"+natSideConnectionId);
                     t.start();
+
                 }catch (Exception ex)
                 {
                     log.error(ex.getMessage(), ex);
@@ -68,7 +79,7 @@ public class PublicSideTunnelerImpl implements PublicSideTunneler {
         }
     }
 
-    public void handleNewNATSideConnection(Socket socket, String secret) throws IOException {
+    private void handleNewNATSideConnection(Socket socket, String secret) throws IOException {
         log.info("Authenticating...");
         InputStream inputStream = socket.getInputStream();
         OutputStream outputStream = socket.getOutputStream();
@@ -81,13 +92,12 @@ public class PublicSideTunnelerImpl implements PublicSideTunneler {
             //Verify secret
             HelloMessage helloMessage = (HelloMessage) tunnelMessage;
             if (secret.equals(helloMessage.getSecret())) {
-                AuthSuccessMessage message = new AuthSuccessMessage("Auth success, I'm server");
+                AuthSuccessMessage message = new AuthSuccessMessage("Auth success, Ready to continue");
                 byte[] dataToSend = PacketUtil.generateBytesToSend(message);
                 outputStream.write(dataToSend);
                 log.info("Authentication success");
 
-                inputStreamFromNatSide = inputStream;
-                outputStreamToNatSide = outputStream;
+                currentTunnelSocket = socket;
 
                 //Mark current state as ready
                 isReady = true;
@@ -112,50 +122,72 @@ public class PublicSideTunnelerImpl implements PublicSideTunneler {
 
     @Override
     public void transmitMessage(TunnelMessage tunnelMessage) {
+        boolean isSuccess = false;
+        byte[] dataToSend = PacketUtil.generateBytesToSend(tunnelMessage);
 
-        while(!isReady)
-        {
+        for(int i = 0; i < 3; i++) {
+            //Wait for connection to be ready
+            while (!isReady) {
+                sleep(50);
+            }
+
+            Socket currentConnection = currentTunnelSocket;
+            log.debug("Transmitting message type " + tunnelMessage.getCommand() + " - " + DatatypeConverter.printHexBinary(dataToSend));
+
             try {
-                Thread.sleep(50);
-            } catch (InterruptedException e) {
-                //Nothing
+                //Send to NAT Side
+                currentConnection.getOutputStream().write(dataToSend);
+                isSuccess = true;
+                break;
+            } catch (IOException e) {
+                log.error(e.getMessage(), e);
+                markCurrentTunnelConnectionAsInvalid(currentConnection);
             }
         }
 
-        byte[] dataToSend = PacketUtil.generateBytesToSend(tunnelMessage);
-        log.debug("Transmitting message type " + tunnelMessage.getCommand() + " - " + DatatypeConverter.printHexBinary(dataToSend));
-
-        //Send to NAT Side
-        try {
-            outputStreamToNatSide.write(dataToSend);
-        } catch (IOException e) {
-            isReady = false;
-            log.error(e.getMessage(), e);
-        }
+        if(!isSuccess)
+            log.error("Failed to transmit message after 3 retry(s)");
     }
 
     @Override
     public TunnelMessage receiveMessage() {
-        while(!isReady)
-        {
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException e) {
-                //Nothing
-            }
+        while (!isReady) {
+            sleep(50);
         }
 
+        Socket currentConnection = currentTunnelSocket;
         //Receive from NAT side
         try {
-            return PacketUtil.readMessageFromInputStream(inputStreamFromNatSide);
+            return PacketUtil.readMessageFromInputStream(currentConnection.getInputStream());
         } catch (IOException e) {
-            isReady = false;
             log.error(e.getMessage(), e);
+            markCurrentTunnelConnectionAsInvalid(currentConnection);
         }
 
+
         return null;
-        //return new DataMessage((short)0, "HELLO FROM Another side".getBytes());
     }
 
+    /***
+     * Mark current tunnel connection as invalid
+     * @param currentTunnelSocket
+     */
+    private void markCurrentTunnelConnectionAsInvalid(Socket currentTunnelSocket)
+    {
+        isReady = false;
+        try {
+            currentTunnelSocket.close();
+        } catch (Exception e) {
+            //Ignore
+        }
+    }
 
+    private static void sleep(long millis)
+    {
+        try {
+            Thread.sleep(millis);
+        } catch (Exception e) {
+            //Nothing
+        }
+    }
 }

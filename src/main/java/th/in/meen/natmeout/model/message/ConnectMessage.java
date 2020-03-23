@@ -2,6 +2,11 @@ package th.in.meen.natmeout.model.message;
 
 import th.in.meen.natmeout.util.PacketUtil;
 
+/***
+ * Written by Suttichort Sarathum
+ * Email: tai5854@hotmail.com
+ * Website: https://www.meen.in.th/
+ */
 public class ConnectMessage implements TunnelMessage {
     private short connectionId;
     public ConnectMessage(short connectionId)

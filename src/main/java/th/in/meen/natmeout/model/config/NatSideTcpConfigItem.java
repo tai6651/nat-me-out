@@ -5,6 +5,12 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.util.Map;
 
+/***
+ * Written by Suttichort Sarathum
+ * Email: tai5854@hotmail.com
+ * Website: https://www.meen.in.th/
+ */
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class NatSideTcpConfigItem {
     private String natSideDestinationHost;

@@ -16,6 +16,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
+/***
+ * Written by Suttichort Sarathum
+ * Email: tai5854@hotmail.com
+ * Website: https://www.meen.in.th/
+ */
 public class NatMeOutApp {
 
     private static final Logger log = LoggerFactory.getLogger(NatMeOutApp.class);

@@ -6,6 +6,11 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 
+/***
+ * Written by Suttichort Sarathum
+ * Email: tai5854@hotmail.com
+ * Website: https://www.meen.in.th/
+ */
 public class PacketUtil {
     public static byte[] convertFromShortToBytes(short data)
     {

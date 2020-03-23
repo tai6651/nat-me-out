@@ -18,13 +18,17 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+/***
+ * Written by Suttichort Sarathum
+ * Email: tai5854@hotmail.com
+ * Website: https://www.meen.in.th/
+ */
 public class NatSideTunnelerImpl implements NatSideTunneler {
 
     private static final Logger log = LoggerFactory.getLogger(NatSideTunnelerImpl.class);
     private boolean isReady = false;
 
-    private InputStream inputStreamFromPublicSide;
-    private OutputStream outputStreamToPublicSide;
+    private Socket connectionToPublicSide;
 
     Map<Short, Socket> destinationConnectionMap;
     Map<Short, Thread> destinationRxThreadMap;
@@ -55,23 +59,31 @@ public class NatSideTunnelerImpl implements NatSideTunneler {
 
     @Override
     public void transmitMessage(TunnelMessage tunnelMessage) {
-        while(!isReady)
-        {
-            sleep(50);
-        }
-
+        boolean isSuccess = false;
         byte[] dataToSend = PacketUtil.generateBytesToSend(tunnelMessage);
-        log.debug("Transmitting message type " + tunnelMessage.getCommand() + " - " + DatatypeConverter.printHexBinary(dataToSend));
 
-        //Send to public Side
-        try {
-            outputStreamToPublicSide.write(dataToSend);
-        } catch (IOException e) {
-            log.error(e.getMessage(), e);
+        for(int i = 0; i < 3; i++) {
+            while (!isReady) {
+                sleep(50);
+            }
 
-            //Mark as failure
-            isReady = false;
+            Socket currentConnection = connectionToPublicSide;
+            log.debug("Transmitting message type " + tunnelMessage.getCommand() + " - " + DatatypeConverter.printHexBinary(dataToSend));
+
+            try {
+                //Send to public Side
+                currentConnection.getOutputStream().write(dataToSend);
+                isSuccess = true;
+                break;
+            } catch (IOException e) {
+                log.error(e.getMessage(), e);
+                markCurrentTunnelConnectionAsInvalid(currentConnection);
+            }
         }
+
+
+        if(!isSuccess)
+            log.error("Failed to transmit message after 3 retry(s)");
     }
 
     @Override
@@ -81,12 +93,14 @@ public class NatSideTunnelerImpl implements NatSideTunneler {
             sleep(50);
         }
 
+        Socket currentConnection = connectionToPublicSide;
+
         //Receive from NAT side
         try {
-            return PacketUtil.readMessageFromInputStream(inputStreamFromPublicSide);
+            return PacketUtil.readMessageFromInputStream(currentConnection.getInputStream());
         } catch (IOException e) {
-            isReady = false;
             log.error(e.getMessage(), e);
+            markCurrentTunnelConnectionAsInvalid(currentConnection);
         }
 
         return null;
@@ -231,9 +245,7 @@ public class NatSideTunnelerImpl implements NatSideTunneler {
                     log.info("Authentication success - " + authSuccessMessage.getMessage());
 
 
-                    outputStreamToPublicSide = outputStream;
-                    inputStreamFromPublicSide = inputStream;
-
+                    connectionToPublicSide = clientSocket;
                     isReady = true;
                     log.info("Server is now ready to tunnel to " + natSideDestinationHost + " port " + natSideDestinationPort);
 
@@ -262,6 +274,20 @@ public class NatSideTunnelerImpl implements NatSideTunneler {
                 //Sleep 5 second before retry
                 sleep(5000);
             }
+        }
+    }
+
+    /***
+     * Mark current tunnel connection as invalid
+     * @param currentTunnelSocket
+     */
+    private void markCurrentTunnelConnectionAsInvalid(Socket currentTunnelSocket)
+    {
+        isReady = false;
+        try {
+            currentTunnelSocket.close();
+        } catch (Exception e) {
+            //Ignore
         }
     }
 

@@ -5,6 +5,11 @@ import th.in.meen.natmeout.util.PacketUtil;
 import javax.xml.bind.DatatypeConverter;
 import java.util.Arrays;
 
+/***
+ * Written by Suttichort Sarathum
+ * Email: tai5854@hotmail.com
+ * Website: https://www.meen.in.th/
+ */
 public class DataMessage implements TunnelMessage  {
 
     private short connectionId;

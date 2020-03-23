@@ -8,6 +8,11 @@ import th.in.meen.natmeout.model.message.TunnelMessage;
 
 import java.util.Map;
 
+/***
+ * Written by Suttichort Sarathum
+ * Email: tai5854@hotmail.com
+ * Website: https://www.meen.in.th/
+ */
 public interface NatSideTunneler {
     void initialize(String natSideDestinationHost, Integer natSideDestinationPort, Map<String, Object> configuration) throws TunnelerException;
     void transmitMessage(TunnelMessage tunnelMessage);
