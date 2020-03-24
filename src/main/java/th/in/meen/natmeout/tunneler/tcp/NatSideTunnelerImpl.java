@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.TimeUnit;
 
 /***
@@ -42,7 +43,7 @@ public class NatSideTunnelerImpl implements NatSideTunneler {
     public void initialize(String natSideDestinationHost, Integer natSideDestinationPort, Map<String, Object> configuration) throws TunnelerException {
         destinationConnectionMap = new HashMap<>();
         destinationRxThreadMap = new HashMap<>();
-        txQueue = new LinkedBlockingQueue<>();
+        txQueue = new LinkedTransferQueue<>();
 
         this.natSideDestinationHost = natSideDestinationHost;
         this.natSideDestinationPort = natSideDestinationPort;
@@ -123,7 +124,7 @@ public class NatSideTunnelerImpl implements NatSideTunneler {
                         InputStream  inputStream = socket.getInputStream();
                         while(true)
                         {
-                            byte[] buffer = new byte[4096];
+                            byte[] buffer = new byte[16384];
                             int dataLength = inputStream.read(buffer);
                             if(dataLength < 0)
                             {
@@ -214,7 +215,7 @@ public class NatSideTunnelerImpl implements NatSideTunneler {
     @Override
     public TunnelMessage pollMessageFromTxQueue() {
         try {
-            return txQueue.poll(50, TimeUnit.MILLISECONDS);
+            return txQueue.poll(5, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             return null;
         }

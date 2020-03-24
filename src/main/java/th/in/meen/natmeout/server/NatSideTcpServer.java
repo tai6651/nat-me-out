@@ -10,9 +10,6 @@ import th.in.meen.natmeout.model.message.TunnelMessage;
 import th.in.meen.natmeout.tunneler.NatSideTunneler;
 
 import java.lang.reflect.Constructor;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 /***
  * Written by Suttichort Sarathum
@@ -23,8 +20,7 @@ public class NatSideTcpServer {
 
     private static final Logger log = LoggerFactory.getLogger(NatSideTcpServer.class);
 
-    //Rx queue (as Tx queue is in Tunneler Implementation)
-    private BlockingQueue<TunnelMessage> rxQueue;
+    //Rx queue and Tx queue is in Tunneler Implementation
 
     //Our Tunneler object
     private NatSideTunneler natSideTunneler;
@@ -38,11 +34,6 @@ public class NatSideTcpServer {
      * @throws Exception - Only if initialization failed (ex. invalid config)
      */
     public NatSideTcpServer(NatSideTcpConfigItem natSideTcpConfigItem) throws Exception {
-        //Setup Rx Queue (Tx Queue is at Tunneler impl)
-        rxQueue = new LinkedBlockingQueue<>();
-
-        //Start our Dispatcher
-        startDispatcherLoop();
 
         //Init tunneler by class name
         log.info("Creating tunneler from " + natSideTcpConfigItem.getTunnelProtocolClass());
@@ -57,36 +48,19 @@ public class NatSideTcpServer {
     }
 
     /***
-     * Create Dispatcher loop
+     * Message Dispatcher
      */
-    public void startDispatcherLoop()
-    {
-        //Start rx dispatcher loop
-        Thread rxDispatcherThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while(true)
-                {
-                    try {
-                        TunnelMessage message = rxQueue.poll(50, TimeUnit.MILLISECONDS);
-                        if(message != null) {
-                            if(message instanceof ConnectMessage)
-                                natSideTunneler.handleConnectMessage((ConnectMessage) message);
-                            else if(message instanceof DisconnectMessage)
-                                natSideTunneler.handleDisconnectMessage((DisconnectMessage) message);
-                            else if(message instanceof DataMessage)
-                                natSideTunneler.handleDataMessage((DataMessage) message);
-                        }
-                    } catch (InterruptedException e) {
-                        break;
-                    }
-                }
-            }
-        });
-        rxDispatcherThread.setName("NatSideRx-Dispatcher");
-        rxDispatcherThread.start();
-    }
+    public void dispatchMessage(TunnelMessage message) {
 
+        if (message != null) {
+            if (message instanceof ConnectMessage)
+                natSideTunneler.handleConnectMessage((ConnectMessage) message);
+            else if (message instanceof DisconnectMessage)
+                natSideTunneler.handleDisconnectMessage((DisconnectMessage) message);
+            else if (message instanceof DataMessage)
+                natSideTunneler.handleDataMessage((DataMessage) message);
+        }
+    }
 
     /***
      * Start Tx message poller loop then transmit that message to public side
@@ -129,9 +103,9 @@ public class NatSideTcpServer {
                     try {
                         TunnelMessage rxMessage = natSideTunneler.receiveMessage();
                         if (rxMessage != null)
-                            rxQueue.put(rxMessage);
+                            dispatchMessage(rxMessage);
 
-                    } catch (InterruptedException e) {
+                    } catch (Exception e) {
                         break;
                     }
                 }

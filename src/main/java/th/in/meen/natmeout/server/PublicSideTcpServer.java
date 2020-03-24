@@ -10,7 +10,6 @@ import th.in.meen.natmeout.model.message.DisconnectMessage;
 import th.in.meen.natmeout.model.message.TunnelMessage;
 import th.in.meen.natmeout.tunneler.PublicSideTunneler;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Constructor;
@@ -20,7 +19,7 @@ import java.net.SocketException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.TimeUnit;
 
 /***
@@ -32,9 +31,8 @@ public class PublicSideTcpServer {
 
     private static final Logger log = LoggerFactory.getLogger(PublicSideTcpServer.class);
 
-    //Tx and Rx queue
+    //Shared Tx queue
     private BlockingQueue<TunnelMessage> txQueue;
-    private BlockingQueue<TunnelMessage> rxQueue;
 
     //Connection map
     private Map<Short, PublicSideConnection> connectionMap;
@@ -53,15 +51,12 @@ public class PublicSideTcpServer {
      * @throws Exception - Only if initialization failed (ex. invalid config)
      */
     public PublicSideTcpServer(PublicSideTcpConfigItem publicSideTcpConfigItem) throws Exception {
-        //Setup Tx Rx Queue
-        txQueue = new LinkedBlockingQueue<>();
-        rxQueue = new LinkedBlockingQueue<>();
+        //Setup Tx Queue
+        txQueue = new LinkedTransferQueue<>();
 
         //Setup connection map
         connectionMap = new HashMap<>();
 
-        //Start rx dispatcher loop
-        startDispatcherLoop();
 
         //Init tunneler by class name
         log.info("Creating tunneler from " + publicSideTcpConfigItem.getTunnelProtocolClass());
@@ -118,7 +113,7 @@ public class PublicSideTcpServer {
         publicSideConnection.setConnectionSocket(connectionSocket);
 
         //Create Rx queue for this connection
-        publicSideConnection.setRxQueue(new LinkedBlockingQueue<>());
+        publicSideConnection.setRxQueue(new LinkedTransferQueue<>());
 
         //Create InputStream reader thread for this connection
         //This will read tcp packet from client and send to Tx queue for transmit to NAT side as Data packet
@@ -130,7 +125,7 @@ public class PublicSideTcpServer {
                     inputStream = connectionSocket.getInputStream();
                     while(true)
                     {
-                        byte[] buffer = new byte[4096];
+                        byte[] buffer = new byte[16384];
                         int dataLength = inputStream.read(buffer);
                         if(dataLength < 0)
                         {
@@ -191,7 +186,7 @@ public class PublicSideTcpServer {
                     BlockingQueue<DataMessage> rxQueue = publicSideConnection.getRxQueue();
                     while(true)
                     {
-                        DataMessage dataMessage = rxQueue.poll(50, TimeUnit.MILLISECONDS);
+                        DataMessage dataMessage = rxQueue.poll(5, TimeUnit.MILLISECONDS);
                         if(dataMessage != null)
                             outputStream.write(dataMessage.getData());
                     }
@@ -221,31 +216,6 @@ public class PublicSideTcpServer {
         //Start processing
         inputStreamReaderThread.start();
         outputStreamWriterThread.start();
-    }
-
-    /***
-     * Create Dispatcher loop
-     */
-    private void startDispatcherLoop()
-    {
-        //Start rx dispatcher loop
-        Thread rxDispatcherThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while(true)
-                {
-                    try {
-                        TunnelMessage message = rxQueue.poll(50, TimeUnit.MILLISECONDS);
-                        dispatchMessage(message);
-                    } catch (InterruptedException e) {
-                        break;
-                    }
-                }
-                log.error("Dispatcher loop exited, Future message will not get dispatched, consider restart entire server");
-            }
-        });
-        rxDispatcherThread.setName("PublicSideRx-Dispatcher");
-        rxDispatcherThread.start();
     }
 
     /***
@@ -286,7 +256,7 @@ public class PublicSideTcpServer {
      * Message will be transmit to NAT side by calling transmitMessage method in PublicSideTunneler's interface
      * It is Tunneler's responsibility to transmit this message to NAT side
      *
-     * Start Rx message poller loop and put to Rx queue for dispatcher
+     * Start Rx message poller loop which pull message from NAT side and send to dispatcher
      * Message will be receive by calling receiveMessage method in PublicSideTunneler's interface
      * It is Tunneler's responsibility to implement the logic and return the tunnel message
      */
@@ -299,7 +269,7 @@ public class PublicSideTcpServer {
                 while(true)
                 {
                     try {
-                        TunnelMessage txMessage = txQueue.poll(50, TimeUnit.MILLISECONDS);
+                        TunnelMessage txMessage = txQueue.poll(5, TimeUnit.MILLISECONDS);
                         if(txMessage != null)
                             publicSideTunneler.transmitMessage(txMessage);
                     } catch (InterruptedException e) {
@@ -320,9 +290,8 @@ public class PublicSideTcpServer {
                     try {
                         TunnelMessage rxMessage = publicSideTunneler.receiveMessage();
                         if (rxMessage != null)
-                            rxQueue.put(rxMessage);
-
-                    } catch (InterruptedException e) {
+                            dispatchMessage(rxMessage);
+                    } catch (Exception e) {
                         break;
                     }
                 }

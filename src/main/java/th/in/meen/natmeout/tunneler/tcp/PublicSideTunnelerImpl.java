@@ -132,7 +132,8 @@ public class PublicSideTunnelerImpl implements PublicSideTunneler {
             }
 
             Socket currentConnection = currentTunnelSocket;
-            log.debug("Transmitting message type " + tunnelMessage.getCommand() + " - " + DatatypeConverter.printHexBinary(dataToSend));
+            if(log.isDebugEnabled())
+                log.debug("Transmitting message type " + tunnelMessage.getCommand() + " - " + DatatypeConverter.printHexBinary(dataToSend));
 
             try {
                 //Send to NAT Side
